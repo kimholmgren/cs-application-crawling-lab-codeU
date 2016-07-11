@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
 import redis.clients.jedis.Jedis;
@@ -55,7 +56,43 @@ public class WikiCrawler {
 	 */
 	public String crawl(boolean testing) throws IOException {
         // FILL THIS IN!
-		return null;
+		System.out.println("GOT INSIDE METHOD");
+		//if nothing is in the queue return
+		if(queue.isEmpty()) {
+			return null;
+		}
+
+		String url = queue.poll();
+		System.out.println("GOT URL = " + url);
+		Elements paras;
+		//choose and remove a URL from the queue in FIFO order
+		if(testing) {
+		//read the contents of the page using WikiFetcher.readWikipedia
+			paras = wf.readWikipedia(url);
+ 
+		} else {
+	//read contents of page using WikiFetcher.fetchWikipedia
+		paras = wf.fetchWikipedia(url);
+		}
+
+		System.out.println("Got paras");
+
+		//index pages regardless of whether they are already indexed
+			index.indexPage(url, paras);
+			System.out.println("Indexed page");
+		//find all internal links (to other pages) on the page and add them to the queue
+		//in the order they appear
+			Document doc = new Document(url);
+			Elements links = doc.getElementsByTag("a");
+			for(Element link : links) {
+				String curr = link.attr("href");
+				if(curr!=url) {
+					queue.add(link.attr("href"));
+				}
+			}
+
+		//return URL of page it indexed
+		return url;
 	}
 	
 	/**
@@ -69,7 +106,6 @@ public class WikiCrawler {
 	}
 
 	public static void main(String[] args) throws IOException {
-		
 		// make a WikiCrawler
 		Jedis jedis = JedisMaker.make();
 		JedisIndex index = new JedisIndex(jedis); 
